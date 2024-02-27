@@ -1,56 +1,56 @@
 const fs = require("fs");
 const http = require("http");
+const { type } = require("os");
 const path = require("path");
 
 // Read template files synchronously at server startup
 const tempOverview = fs.readFileSync(path.join(__dirname,'1-node-farm', 'templates', 'template-overview.html'), 'utf8');
 const tempCard = fs.readFileSync(path.join(__dirname, '1-node-farm','templates', 'template-card.html'), 'utf8');
 const tempProduct = fs.readFileSync(path.join(__dirname,'1-node-farm', 'templates', 'product.html'), 'utf8');
+const productData = fs.readFileSync(path.join(__dirname, '1-node-farm', 'starter', 'dev-data',  'data.json'), 'utf8', (err, data) => {
+  if (err) {
+    const errMsg = err.message
+    return errMsg
+  }
+  return data;
+});
 
-// Create an HTTP server
+const replaceTemplate = (card ,data)=>{
+  let output = card.replace(/{%PRODUCTNAME%}/g, data.productName);
+  output = output.replace(/{%IMAGE%}/g,data.image);
+  output = output.replace(/{%PRICE%}/g,data.price);
+  output = output.replace(/{%NUTRIENTS%}/g,data.nutrients);
+  output = output.replace(/{%QUANTITY%}/g,data.quantity);
+  output = output.replace(/{%DESCRIPTION%}/g,data.description);
+  output = output.replace(/{%ID%}/g,data.id);
 
-const replaceTemplate = (temp,product)=>{
-  let output=temp.replace(/{%PRODUCTNAME%}/g,product.productName);
-  output = output.replace(/{%IMAGE%}/g,product.image);
-  output = output.replace(/{%PRICE%}/g,product.price);
-  output = output.replace(/{%NUTRIENTS%}/g,product.nutrients);
-  output = output.replace(/{%QUANTITY%}/g,product.qunatity);
-  output = output.replace(/{%DESCRIPTION%}/g,product.description);
-  output = output.replace(/{%ID%}/g,product.id);
-
-  if(!product.organic)
+  if(!data.organic)
   output = output.replace(/{%NOT_ORGANIC%}/g, 'not-organic');
-  
+  return output
 }
 const server = http.createServer((req, res) => {
-  const pathName = req.url;
+  //const{query,pathname}=url.parse(req.url,true);
+  console.log(pathname);
 
   // Route for overview or root
-  if (pathName === "/overview" || pathName === "/") {
+  if (pathname === "/overview" ||pathname === "/") {
     res.writeHead(200, { "Content-Type": "text/html" });
+    const newdata = JSON.parse(productData)
 
-    const cardsHtml = productData.map(el=>replaceTemplate(ele,tempCard))
-        res.end(tempOverview); // Placeholder response
+    const cardsHtml = newdata.map(productdata => replaceTemplate(tempCard, productdata))
+    const tempOverviewNew = tempOverview.replace(/{%PRODUCT_CARDS%}/g, cardsHtml)
+    res.end(tempOverviewNew)
   } 
   // Route for products
-  else if (pathName === "/products") {
+  else if (pathname === "/products") {
     res.writeHead(200, { "Content-Type": "text/html" });
 
     res.end("these area products"); // Placeholder response
   } 
   // Route for API to serve JSON data
-  else if (pathName === "/api") {
-    fs.readFile(path.join(__dirname, 'data', 'data.json'), 'utf8', (err, data) => {
-      if (err) {
-        res.writeHead(500, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ error: "Failed to read data file" }));
-        return;
-      }
-      // Assuming data is JSON string
-      const productData = JSON.parse(data);
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify(productData)); // Send JSON data
-    });
+  else if (pathname === "/api") {
+   res.writeHead(200, { "Content-Type": "text/html" });
+   res.end(JSON.parse(productData));
   } 
   // Handle unknown routes
   else {
